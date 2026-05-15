@@ -339,12 +339,15 @@ function CoinDetailPage() {
 
   const [ohlcData, setOhlcData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState("24h");
 
   useEffect(() => {
     async function fetchOhlcData() {
       try {
+        setLoading(true);
+
         const response = await fetch(
-          `${API_BASE_URL}/prices/ohlc/${coinName}?interval_minutes=30`
+          `${API_BASE_URL}/prices/ohlc/${coinName}?interval_minutes=30&period=${selectedPeriod}`
         );
 
         if (!response.ok) {
@@ -361,8 +364,29 @@ function CoinDetailPage() {
     }
 
     fetchOhlcData();
-  }, [coinName]);
+  }, [coinName, selectedPeriod]);
+function calculateStats(data) {
+  if (!data || data.length === 0) {
+    return null;
+  }
 
+  const latestCandle = data[data.length - 1];
+
+  const periodHigh = Math.max(...data.map((candle) => candle.high));
+  const periodLow = Math.min(...data.map((candle) => candle.low));
+
+  const averageClose =
+    data.reduce((sum, candle) => sum + candle.close, 0) / data.length;
+
+  return {
+    currentPrice: latestCandle.close,
+    periodHigh,
+    periodLow,
+    averageClose,
+    candleCount: data.length,
+  };
+}
+const stats = calculateStats(ohlcData);
   return (
     <main className="dashboard">
       <section className="content-card">
@@ -370,12 +394,69 @@ function CoinDetailPage() {
           ← Back to Dashboard
         </button>
 
-        <h1>{coinName}</h1>
+        <div className="coin-detail-header">
+          <div>
+            <h1>{coinName}</h1>
+            <p className="coin-detail-subtitle">
+              Historical OHLC candlestick chart
+            </p>
+          </div>
 
+          <div className="period-buttons">
+            <button
+              className={selectedPeriod === "24h" ? "active-period" : ""}
+              onClick={() => setSelectedPeriod("24h")}
+            >
+              24H
+            </button>
+
+            <button
+              className={selectedPeriod === "7d" ? "active-period" : ""}
+              onClick={() => setSelectedPeriod("7d")}
+            >
+              7D
+            </button>
+
+            <button
+              className={selectedPeriod === "30d" ? "active-period" : ""}
+              onClick={() => setSelectedPeriod("30d")}
+            >
+              30D
+            </button>
+          </div>
+        </div>
+        {stats && (
+  <div className="stats-grid">
+    <div className="stat-card">
+      <span>Current Price</span>
+      <strong>{formatCurrency(stats.currentPrice)}</strong>
+    </div>
+
+    <div className="stat-card">
+      <span>Period High</span>
+      <strong>{formatCurrency(stats.periodHigh)}</strong>
+    </div>
+
+    <div className="stat-card">
+      <span>Period Low</span>
+      <strong>{formatCurrency(stats.periodLow)}</strong>
+    </div>
+
+    <div className="stat-card">
+      <span>Average Close</span>
+      <strong>{formatCurrency(stats.averageClose)}</strong>
+    </div>
+
+    <div className="stat-card">
+      <span>Candles</span>
+      <strong>{stats.candleCount}</strong>
+    </div>
+  </div>
+)}
         {loading && <p>Loading OHLC candle data...</p>}
 
         {!loading && ohlcData.length === 0 && (
-          <p>No OHLC candle data available.</p>
+          <p>No OHLC candle data available for this period.</p>
         )}
 
         {!loading && ohlcData.length > 0 && <CandleChart data={ohlcData} />}
@@ -383,7 +464,6 @@ function CoinDetailPage() {
     </main>
   );
 }
-
 function Root() {
   return (
     <BrowserRouter>

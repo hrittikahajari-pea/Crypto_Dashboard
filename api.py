@@ -123,44 +123,25 @@ def get_price_history(
     logger.info("Fetching historical price records for %s.", coin_name)
     return fetch_all(query, (coin_name, limit))
 @app.get("/prices/ohlc/{coin_name}")
-def get_ohlc_data(
+def get_ohlc_prices(
     coin_name: str,
-    interval_minutes: int = Query(default=30, ge=5, le=1440),
+    interval_minutes: int = Query(default=30, ge=1, le=1440),
+    period: str = Query(default="24h"),
 ):
-    query = """
-    WITH price_windows AS (
-        SELECT
-            coin_name,
-            price,
-            market_timestamp,
-            FLOOR(EXTRACT(EPOCH FROM market_timestamp) / (%s * 60)) AS window_id
-        FROM crypto_prices
-        WHERE coin_name = %s
-          AND market_timestamp IS NOT NULL
-    ),
-    ranked_prices AS (
-        SELECT
-            *,
-            FIRST_VALUE(price) OVER (
-                PARTITION BY window_id
-                ORDER BY market_timestamp ASC
-            ) AS open_price,
-            FIRST_VALUE(price) OVER (
-                PARTITION BY window_id
-                ORDER BY market_timestamp DESC
-            ) AS close_price
-        FROM price_windows
-    )
-    SELECT
-        MIN(market_timestamp) AS candle_time,
-        MAX(open_price) AS open,
-        MAX(price) AS high,
-        MIN(price) AS low,
-        MAX(close_price) AS close
-    FROM ranked_prices
-    GROUP BY window_id
-    ORDER BY candle_time ASC;
-    """
+    period_map = {
+        "24h": "24 hours",
+        "7d": "7 days",
+        "30d": "30 days",
+    }
+
+    if period not in period_map:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid period. Supported values are: 24h, 7d, 30d.",
+        )
+
+    selected_period = period_map[period]
+    interval_seconds = interval_minutes * 60
 
     conn = None
     cur = None
@@ -168,8 +149,85 @@ def get_ohlc_data(
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(query, (interval_minutes, coin_name))
+
+        query = """
+            WITH latest_timestamp AS (
+                SELECT MAX(market_timestamp) AS latest_market_timestamp
+                FROM crypto_prices
+                WHERE LOWER(coin_name) = LOWER(%s)
+            ),
+            filtered_prices AS (
+                SELECT
+                    cp.price,
+                    cp.market_timestamp,
+                    cp.ingested_at,
+                    (
+                        TIMESTAMP 'epoch'
+                        + (
+                            FLOOR(EXTRACT(EPOCH FROM cp.market_timestamp) / %s)::BIGINT
+                            * %s
+                        ) * INTERVAL '1 second'
+                    ) AS time_bucket
+                FROM crypto_prices cp
+                CROSS JOIN latest_timestamp lt
+                WHERE LOWER(cp.coin_name) = LOWER(%s)
+                  AND lt.latest_market_timestamp IS NOT NULL
+                  AND cp.market_timestamp >= lt.latest_market_timestamp - (%s)::INTERVAL
+                  AND cp.market_timestamp <= lt.latest_market_timestamp
+            ),
+            ohlc_window AS (
+                SELECT
+                    time_bucket,
+                    FIRST_VALUE(price) OVER (
+                        PARTITION BY time_bucket
+                        ORDER BY market_timestamp ASC, ingested_at ASC
+                    ) AS open_price,
+                    MAX(price) OVER (
+                        PARTITION BY time_bucket
+                    ) AS high_price,
+                    MIN(price) OVER (
+                        PARTITION BY time_bucket
+                    ) AS low_price,
+                    FIRST_VALUE(price) OVER (
+                        PARTITION BY time_bucket
+                        ORDER BY market_timestamp DESC, ingested_at DESC
+                    ) AS close_price,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY time_bucket
+                        ORDER BY market_timestamp ASC, ingested_at ASC
+                    ) AS row_number
+                FROM filtered_prices
+            )
+            SELECT
+                time_bucket,
+                open_price,
+                high_price,
+                low_price,
+                close_price
+            FROM ohlc_window
+            WHERE row_number = 1
+            ORDER BY time_bucket ASC;
+        """
+
+        cur.execute(
+            query,
+            (
+                coin_name,
+                interval_seconds,
+                interval_seconds,
+                coin_name,
+                selected_period,
+            ),
+        )
+
         rows = cur.fetchall()
+
+        logger.info(
+            "OHLC rows returned for %s, period=%s: %s",
+            coin_name,
+            period,
+            len(rows),
+        )
 
         return [
             {
@@ -192,5 +250,6 @@ def get_ohlc_data(
     finally:
         if cur is not None:
             cur.close()
+
         if conn is not None:
             conn.close()

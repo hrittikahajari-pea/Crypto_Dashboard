@@ -227,3 +227,70 @@ tbody tr:hover {
     min-width: unset;
   }
 }
+.coin-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.coin-detail-subtitle {
+  color: #94a3b8;
+  margin: 0;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.period-buttons button {
+  background: #0f172a;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  padding: 9px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.period-buttons button:hover {
+  background: #1e293b;
+}
+
+.period-buttons .active-period {
+  background: #38bdf8;
+  color: #020617;
+  border-color: #38bdf8;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.stat-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-card span {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.stat-card strong {
+  color: #f8fafc;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
