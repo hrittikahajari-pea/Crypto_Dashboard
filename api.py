@@ -116,7 +116,7 @@ def get_price_history(
         ingested_at
     FROM crypto_prices
     WHERE coin_name = %s
-    ORDER BY market_timestamp ASC
+    ORDER BY market_timestamp ASC NULLS LAST, ingested_at ASC
     LIMIT %s;
     """
 
