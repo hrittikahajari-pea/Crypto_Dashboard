@@ -4,7 +4,7 @@ import time
 
 from extract import run_etl
 
-# Logging setup
+# Logging setup eyaaaaayyyyy
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",

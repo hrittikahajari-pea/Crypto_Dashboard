@@ -1,10 +1,8 @@
 import logging
-
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Query
 
 from db_connect import get_connection
-
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -13,11 +11,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Pea's Crypto Intelligence API hueh!",
+    title="Welcome to Pea's Crypto Intelligence API hueh!",
     description="API for serving live and historical cryptocurrency data ",
     version="1.0.0",
 )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 PRICE_COLUMNS = (
     "id",
@@ -89,7 +93,7 @@ def get_latest_prices():
         market_timestamp,
         ingested_at
     FROM crypto_prices
-    ORDER BY coin_name, market_timestamp DESC;
+    ORDER BY coin_name, market_timestamp DESC NULLS LAST, ingested_at DESC;
     """
 
     logger.info("Fetching latest crypto price records.")
