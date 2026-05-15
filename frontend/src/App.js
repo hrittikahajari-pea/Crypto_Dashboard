@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
-import "./App.css";
 import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
+  BrowserRouter,
+  Routes,
+  Route,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+import "./App.css";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
@@ -34,7 +31,6 @@ function formatNumber(value) {
 
 function formatDateTime(value) {
   if (!value) return "N/A";
-
   return new Date(value).toLocaleString();
 }
 
@@ -126,7 +122,10 @@ function App() {
                 {[...prices]
                   .sort((a, b) => b.price - a.price)
                   .map((coin) => (
-                    <tr key={coin.id} onClick={() => navigate(`/coin/${coin.coin_name}`)}>
+                    <tr
+                      key={coin.id}
+                      onClick={() => navigate(`/coin/${coin.coin_name}`)}
+                    >
                       <td className="coin-name">{coin.coin_name}</td>
                       <td>{formatCurrency(coin.price)}</td>
                       <td>{formatNumber(coin.market_cap)}</td>
@@ -143,115 +142,248 @@ function App() {
     </main>
   );
 }
-function CoinDetailPage() {
-  const { coinName } = useParams(); 
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const firstPrice = history.length > 0 ? history[0].price : null;
-  const latestPrice = history.length > 0 ? history[history.length - 1].price : null;
-  let trend = "Neutral";
+function CandleChart({ data }) {
+  const [hoveredCandle, setHoveredCandle] = useState(null);
 
-if (firstPrice !== null && latestPrice !== null) {
-  if (latestPrice > firstPrice) {
-    trend = "Bullish";
-  } else if (latestPrice < firstPrice) {
-    trend = "Bearish";
-  }
+  if (!data || data.length === 0) return null;
+
+  const width = 1000;
+  const height = 330;
+
+  const leftPadding = 95;
+  const rightPadding = 35;
+  const topPadding = 30;
+  const bottomPadding = 45;
+
+  const chartWidth = width - leftPadding - rightPadding;
+  const chartHeight = height - topPadding - bottomPadding;
+
+  const allPrices = data.flatMap((candle) => [
+    candle.open,
+    candle.high,
+    candle.low,
+    candle.close,
+  ]);
+
+  const rawMinPrice = Math.min(...allPrices);
+  const rawMaxPrice = Math.max(...allPrices);
+  const range = rawMaxPrice - rawMinPrice || 1;
+
+  const paddedMinPrice = rawMinPrice - range * 0.04;
+  const paddedMaxPrice = rawMaxPrice + range * 0.04;
+  const paddedRange = paddedMaxPrice - paddedMinPrice || 1;
+
+  const priceToY = (price) =>
+    topPadding + ((paddedMaxPrice - price) / paddedRange) * chartHeight;
+
+  const gap = chartWidth / Math.max(data.length, 1);
+  const candleWidth = Math.max(24, Math.min(48, gap * 0.55));
+  const priceTicks = 5;
+
+  return (
+    <div className="chart-card">
+      <div className="chart-header">
+        <div>
+          <h2>OHLC Candlestick Trend</h2>
+          <p>Hover over each candle to inspect open, high, low and close.</p>
+        </div>
+
+        <div className="ohlc-tooltip fixed-tooltip">
+          {hoveredCandle ? (
+            <>
+              <strong>{formatDateTime(hoveredCandle.time)}</strong>
+              <span>Open: {formatCurrency(hoveredCandle.open)}</span>
+              <span>High: {formatCurrency(hoveredCandle.high)}</span>
+              <span>Low: {formatCurrency(hoveredCandle.low)}</span>
+              <span>Close: {formatCurrency(hoveredCandle.close)}</span>
+              <span>
+                Candle:{" "}
+                {hoveredCandle.close >= hoveredCandle.open
+                  ? "Bullish"
+                  : "Bearish"}
+              </span>
+            </>
+          ) : (
+            <>
+              <strong>OHLC Details</strong>
+              <span>Move cursor over a candle</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="candlestick-chart"
+        onMouseLeave={() => setHoveredCandle(null)}
+      >
+        {[...Array(priceTicks)].map((_, index) => {
+          const value =
+            paddedMinPrice +
+            ((paddedMaxPrice - paddedMinPrice) / (priceTicks - 1)) * index;
+
+          const y = priceToY(value);
+
+          return (
+            <g key={value}>
+              <line
+                x1={leftPadding}
+                y1={y}
+                x2={width - rightPadding}
+                y2={y}
+                stroke="#243244"
+                strokeDasharray="5 5"
+              />
+
+              <text
+                x={leftPadding - 16}
+                y={y + 5}
+                textAnchor="end"
+                fill="#93c5fd"
+                fontSize="14"
+              >
+                {formatCurrency(value)}
+              </text>
+            </g>
+          );
+        })}
+
+        <line
+          x1={leftPadding}
+          y1={topPadding}
+          x2={leftPadding}
+          y2={height - bottomPadding}
+          stroke="#64748b"
+          strokeWidth="1.5"
+        />
+
+        <line
+          x1={leftPadding}
+          y1={height - bottomPadding}
+          x2={width - rightPadding}
+          y2={height - bottomPadding}
+          stroke="#64748b"
+          strokeWidth="1.5"
+        />
+
+        {data.map((candle, index) => {
+          const x = leftPadding + index * gap + gap / 2;
+
+          const openY = priceToY(candle.open);
+          const closeY = priceToY(candle.close);
+          const highY = priceToY(candle.high);
+          const lowY = priceToY(candle.low);
+
+          const isBullish = candle.close >= candle.open;
+          const candleColor = isBullish ? "#22c55e" : "#ef4444";
+
+          return (
+            <g key={`${candle.time}-${index}`}>
+              <rect
+                x={x - gap / 2}
+                y={topPadding}
+                width={gap}
+                height={chartHeight}
+                fill="transparent"
+                pointerEvents="all"
+                onMouseMove={() => {
+                  if (hoveredCandle?.time !== candle.time) {
+                    setHoveredCandle(candle);
+                  }
+                }}
+              />
+
+              <line
+                x1={x}
+                y1={highY}
+                x2={x}
+                y2={lowY}
+                stroke={candleColor}
+                strokeWidth="4"
+                strokeLinecap="round"
+                pointerEvents="none"
+              />
+
+              <rect
+                x={x - candleWidth / 2}
+                y={Math.min(openY, closeY)}
+                width={candleWidth}
+                height={Math.max(Math.abs(closeY - openY), 8)}
+                fill={candleColor}
+                rx="5"
+                pointerEvents="none"
+              />
+
+              <text
+                x={x}
+                y={height - bottomPadding + 28}
+                textAnchor="middle"
+                fill="#93c5fd"
+                fontSize="13"
+                pointerEvents="none"
+              >
+                {new Date(candle.time).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
 }
+function CoinDetailPage() {
+  const { coinName } = useParams();
+
+  const [ohlcData, setOhlcData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchHistory() {
+    async function fetchOhlcData() {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/prices/history/${coinName}`
+          `${API_BASE_URL}/prices/ohlc/${coinName}?interval_minutes=30`
         );
 
+        if (!response.ok) {
+          throw new Error(`OHLC request failed with status ${response.status}`);
+        }
+
         const data = await response.json();
-        setHistory(data);
+        setOhlcData(data);
       } catch (error) {
-        console.error("Failed to fetch history:", error);
+        console.error("Failed to fetch OHLC data:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchHistory();
+    fetchOhlcData();
   }, [coinName]);
 
   return (
     <main className="dashboard">
       <section className="content-card">
-        <button
-          className="back-button"
-          onClick={() => window.history.back()}
-        >
+        <button className="back-button" onClick={() => window.history.back()}>
           ← Back to Dashboard
         </button>
 
         <h1>{coinName}</h1>
-        <p className={`trend-badge ${trend.toLowerCase()}`}>
-  {trend} Trend
-</p>
-        {loading && <p>Loading historical data...</p>}
 
-        {!loading && history.length === 0 && (
-          <p>No historical data available.</p>
+        {loading && <p>Loading OHLC candle data...</p>}
+
+        {!loading && ohlcData.length === 0 && (
+          <p>No OHLC candle data available.</p>
         )}
 
-        {!loading && history.length > 0 && (
-          <div className="chart-card">
-  <h2>{coinName} Price Trend</h2>
-
-  <ResponsiveContainer width="100%" height={420}>
-    <LineChart data={history}>
-      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-
-      <XAxis
-        dataKey="market_timestamp"
-        tickFormatter={(value) =>
-          value ? new Date(value).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }) : ""
-        }
-        stroke="#94a3b8"
-      />
-
-      <YAxis
-        stroke="#94a3b8"
-        domain={["auto", "auto"]}
-        tickFormatter={(value) => `$${Number(value).toLocaleString()}`}
-      />
-
-      <Tooltip
-        contentStyle={{
-          backgroundColor: "#020617",
-          border: "1px solid #334155",
-          borderRadius: "10px",
-          color: "#e5e7eb",
-        }}
-        labelFormatter={(value) =>
-          value ? new Date(value).toLocaleString() : ""
-        }
-        formatter={(value) => [`$${Number(value).toLocaleString()}`, "Price"]}
-      />
-
-      <Line
-        type="monotone"
-        dataKey="price"
-        stroke="#38bdf8"
-        strokeWidth={3}
-        dot={false}
-        activeDot={{ r: 6 }}
-      />
-    </LineChart>
-  </ResponsiveContainer>
-</div>
-        )}
+        {!loading && ohlcData.length > 0 && <CandleChart data={ohlcData} />}
       </section>
     </main>
   );
 }
+
 function Root() {
   return (
     <BrowserRouter>
@@ -262,4 +394,5 @@ function Root() {
     </BrowserRouter>
   );
 }
+
 export default Root;
