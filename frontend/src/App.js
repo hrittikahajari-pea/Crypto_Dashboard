@@ -377,6 +377,16 @@ function calculateStats(data) {
 
   const averageClose =
     data.reduce((sum, candle) => sum + candle.close, 0) / data.length;
+  const changePercent =
+  ((latestCandle.close - data[0].open) / data[0].open) * 100;
+
+let trend = "Neutral";
+
+if (changePercent > 0.5) {
+  trend = "Bullish";
+} else if (changePercent < -0.5) {
+  trend = "Bearish";
+}
 
   return {
     currentPrice: latestCandle.close,
@@ -384,6 +394,8 @@ function calculateStats(data) {
     periodLow,
     averageClose,
     candleCount: data.length,
+    changePercent,
+    trend,
   };
 }
 const stats = calculateStats(ohlcData);
@@ -451,6 +463,11 @@ const stats = calculateStats(ohlcData);
       <span>Candles</span>
       <strong>{stats.candleCount}</strong>
     </div>
+    <div className={`stat-card trend-${stats.trend.toLowerCase()}`}>
+  <span>Trend</span>
+  <strong>{stats.trend}</strong>
+  <small>{stats.changePercent.toFixed(2)}%</small>
+</div>
   </div>
 )}
         {loading && <p>Loading OHLC candle data...</p>}

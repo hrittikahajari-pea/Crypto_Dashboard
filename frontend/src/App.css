@@ -294,3 +294,31 @@ tbody tr:hover {
   font-size: 1.35rem;
   font-weight: 700;
 }
+.stat-card small {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.trend-bullish {
+  border-color: #22c55e;
+}
+
+.trend-bullish strong {
+  color: #22c55e;
+}
+
+.trend-bearish {
+  border-color: #ef4444;
+}
+
+.trend-bearish strong {
+  color: #ef4444;
+}
+
+.trend-neutral {
+  border-color: #64748b;
+}
+
+.trend-neutral strong {
+  color: #cbd5e1;
+}
