@@ -147,7 +147,7 @@ function CandleChart({ data }) {
 
   if (!data || data.length === 0) return null;
 
-  const width = 1000;
+  const width = 1200;
   const height = 330;
 
   const leftPadding = 95;
@@ -180,12 +180,23 @@ function CandleChart({ data }) {
   const candleWidth = Math.max(24, Math.min(48, gap * 0.55));
   const priceTicks = 5;
 
+  const closeLinePoints = data
+    .map((candle, index) => {
+      const x = leftPadding + index * gap + gap / 2;
+      const y = priceToY(candle.close);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
   return (
     <div className="chart-card">
       <div className="chart-header">
         <div>
           <h2>OHLC Candlestick Trend</h2>
-          <p>Hover over each candle to inspect open, high, low and close.</p>
+          <p>
+            Candles show OHLC movement, while the blue line tracks closing price
+            trend.
+          </p>
         </div>
 
         <div className="ohlc-tooltip fixed-tooltip">
@@ -247,6 +258,17 @@ function CandleChart({ data }) {
             </g>
           );
         })}
+
+        <polyline
+          points={closeLinePoints}
+          fill="none"
+          stroke="#38bdf8"
+          strokeWidth="2.5"
+          strokeOpacity="0.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pointerEvents="none"
+        />
 
         <line
           x1={leftPadding}
@@ -340,65 +362,86 @@ function CoinDetailPage() {
   const [ohlcData, setOhlcData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState("24h");
+  const [activeView, setActiveView] = useState("historical");
+  const [prediction, setPrediction] = useState(null);
 
   useEffect(() => {
-    async function fetchOhlcData() {
+    async function fetchCoinData() {
       try {
         setLoading(true);
 
-        const response = await fetch(
+        const ohlcResponse = await fetch(
           `${API_BASE_URL}/prices/ohlc/${coinName}?interval_minutes=30&period=${selectedPeriod}`
         );
 
-        if (!response.ok) {
-          throw new Error(`OHLC request failed with status ${response.status}`);
+        if (!ohlcResponse.ok) {
+          throw new Error(
+            `OHLC request failed with status ${ohlcResponse.status}`
+          );
         }
 
-        const data = await response.json();
-        setOhlcData(data);
+        const ohlcDataResult = await ohlcResponse.json();
+        setOhlcData(ohlcDataResult);
+
+        const predictionResponse = await fetch(
+          `${API_BASE_URL}/predict/${coinName}`
+        );
+
+        if (predictionResponse.ok) {
+          const predictionData = await predictionResponse.json();
+          setPrediction(predictionData);
+        } else {
+          setPrediction(null);
+        }
       } catch (error) {
-        console.error("Failed to fetch OHLC data:", error);
+        console.error("Failed to fetch coin detail data:", error);
+        setOhlcData([]);
+        setPrediction(null);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchOhlcData();
+    fetchCoinData();
   }, [coinName, selectedPeriod]);
-function calculateStats(data) {
-  if (!data || data.length === 0) {
-    return null;
+
+  function calculateStats(data) {
+    if (!data || data.length === 0) {
+      return null;
+    }
+
+    const latestCandle = data[data.length - 1];
+
+    const periodHigh = Math.max(...data.map((candle) => candle.high));
+    const periodLow = Math.min(...data.map((candle) => candle.low));
+
+    const averageClose =
+      data.reduce((sum, candle) => sum + candle.close, 0) / data.length;
+
+    const changePercent =
+      ((latestCandle.close - data[0].open) / data[0].open) * 100;
+
+    let trend = "Neutral";
+
+    if (changePercent > 0.5) {
+      trend = "Bullish";
+    } else if (changePercent < -0.5) {
+      trend = "Bearish";
+    }
+
+    return {
+      currentPrice: latestCandle.close,
+      periodHigh,
+      periodLow,
+      averageClose,
+      candleCount: data.length,
+      changePercent,
+      trend,
+    };
   }
 
-  const latestCandle = data[data.length - 1];
+  const stats = calculateStats(ohlcData);
 
-  const periodHigh = Math.max(...data.map((candle) => candle.high));
-  const periodLow = Math.min(...data.map((candle) => candle.low));
-
-  const averageClose =
-    data.reduce((sum, candle) => sum + candle.close, 0) / data.length;
-  const changePercent =
-  ((latestCandle.close - data[0].open) / data[0].open) * 100;
-
-let trend = "Neutral";
-
-if (changePercent > 0.5) {
-  trend = "Bullish";
-} else if (changePercent < -0.5) {
-  trend = "Bearish";
-}
-
-  return {
-    currentPrice: latestCandle.close,
-    periodHigh,
-    periodLow,
-    averageClose,
-    candleCount: data.length,
-    changePercent,
-    trend,
-  };
-}
-const stats = calculateStats(ohlcData);
   return (
     <main className="dashboard">
       <section className="content-card">
@@ -410,73 +453,159 @@ const stats = calculateStats(ohlcData);
           <div>
             <h1>{coinName}</h1>
             <p className="coin-detail-subtitle">
-              Historical OHLC candlestick chart
+              {activeView === "historical"
+                ? `Historical OHLC analysis for ${selectedPeriod.toUpperCase()}`
+                : "Next 30-minute candle forecast"}
             </p>
           </div>
 
           <div className="period-buttons">
             <button
-              className={selectedPeriod === "24h" ? "active-period" : ""}
-              onClick={() => setSelectedPeriod("24h")}
+              className={
+                activeView === "historical" && selectedPeriod === "24h"
+                  ? "active-period"
+                  : ""
+              }
+              onClick={() => {
+                setActiveView("historical");
+                setSelectedPeriod("24h");
+              }}
             >
               24H
             </button>
 
             <button
-              className={selectedPeriod === "7d" ? "active-period" : ""}
-              onClick={() => setSelectedPeriod("7d")}
+              className={
+                activeView === "historical" && selectedPeriod === "7d"
+                  ? "active-period"
+                  : ""
+              }
+              onClick={() => {
+                setActiveView("historical");
+                setSelectedPeriod("7d");
+              }}
             >
               7D
             </button>
 
             <button
-              className={selectedPeriod === "30d" ? "active-period" : ""}
-              onClick={() => setSelectedPeriod("30d")}
+              className={
+                activeView === "historical" && selectedPeriod === "30d"
+                  ? "active-period"
+                  : ""
+              }
+              onClick={() => {
+                setActiveView("historical");
+                setSelectedPeriod("30d");
+              }}
             >
               30D
             </button>
+
+            <button
+              className={activeView === "forecast" ? "active-period" : ""}
+              onClick={() => setActiveView("forecast")}
+            >
+              Next Candle
+            </button>
           </div>
         </div>
-        {stats && (
-  <div className="stats-grid">
-    <div className="stat-card">
-      <span>Current Price</span>
-      <strong>{formatCurrency(stats.currentPrice)}</strong>
-    </div>
 
-    <div className="stat-card">
-      <span>Period High</span>
-      <strong>{formatCurrency(stats.periodHigh)}</strong>
-    </div>
+        {activeView === "historical" && stats && (
+          <div className="stats-grid">
+            <div className="stat-card">
+              <span>Current Price</span>
+              <strong>{formatCurrency(stats.currentPrice)}</strong>
+            </div>
 
-    <div className="stat-card">
-      <span>Period Low</span>
-      <strong>{formatCurrency(stats.periodLow)}</strong>
-    </div>
+            <div className="stat-card">
+              <span>Period High</span>
+              <strong>{formatCurrency(stats.periodHigh)}</strong>
+            </div>
 
-    <div className="stat-card">
-      <span>Average Close</span>
-      <strong>{formatCurrency(stats.averageClose)}</strong>
-    </div>
+            <div className="stat-card">
+              <span>Period Low</span>
+              <strong>{formatCurrency(stats.periodLow)}</strong>
+            </div>
 
-    <div className="stat-card">
-      <span>Candles</span>
-      <strong>{stats.candleCount}</strong>
-    </div>
-    <div className={`stat-card trend-${stats.trend.toLowerCase()}`}>
-  <span>Trend</span>
-  <strong>{stats.trend}</strong>
-  <small>{stats.changePercent.toFixed(2)}%</small>
-</div>
-  </div>
-)}
-        {loading && <p>Loading OHLC candle data...</p>}
+            <div className="stat-card">
+              <span>Average Close</span>
+              <strong>{formatCurrency(stats.averageClose)}</strong>
+            </div>
 
-        {!loading && ohlcData.length === 0 && (
+            <div className="stat-card">
+              <span>Candles</span>
+              <strong>{stats.candleCount}</strong>
+            </div>
+
+            <div className={`stat-card trend-${stats.trend.toLowerCase()}`}>
+              <span>Trend</span>
+              <strong>{stats.trend}</strong>
+              <small>{stats.changePercent.toFixed(2)}%</small>
+            </div>
+          </div>
+        )}
+
+        {activeView === "forecast" && prediction && (
+          <div className="prediction-card">
+            <div className="prediction-heading">
+              <strong>Next 30-Minute Forecast</strong>
+              <span>
+                Forecast generated from historical price data using a machine
+                learning model.
+              </span>
+            </div>
+
+            <div>
+              <span>Current Price</span>
+              <strong>{formatCurrency(prediction.current_price)}</strong>
+            </div>
+
+            <div>
+              <span>Predicted Close</span>
+              <strong>{formatCurrency(prediction.predicted_price)}</strong>
+            </div>
+
+            <div>
+              <span>Expected Change</span>
+              <strong>
+                {prediction.predicted_change_percent.toFixed(2)}%
+              </strong>
+            </div>
+
+            <div>
+              <span>Predicted Trend</span>
+              <strong>{prediction.predicted_trend}</strong>
+            </div>
+
+            <div>
+              <span>Confidence Score</span>
+              <strong>{prediction.confidence_score.toFixed(2)}%</strong>
+            </div>
+
+            <p className="forecast-disclaimer">
+              This forecast is based on historical price patterns and should be
+              used as a supplementary analytical signal, not as financial
+              advice.
+            </p>
+          </div>
+        )}
+
+        {activeView === "forecast" && !prediction && !loading && (
+          <p>No prediction available yet. More historical data may be required.</p>
+        )}
+
+        {activeView === "historical" && loading && (
+          <p>Loading OHLC candle data...</p>
+        )}
+
+        {activeView === "historical" && !loading && ohlcData.length === 0 && (
           <p>No OHLC candle data available for this period.</p>
         )}
 
-        {!loading && ohlcData.length > 0 && <CandleChart data={ohlcData} />}
+        {activeView === "historical" &&
+          !loading &&
+          ohlcData.length > 0 && <CandleChart data={ohlcData} />}
       </section>
     </main>
   );

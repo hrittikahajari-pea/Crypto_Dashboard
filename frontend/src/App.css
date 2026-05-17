@@ -322,3 +322,30 @@ tbody tr:hover {
 .trend-neutral strong {
   color: #cbd5e1;
 }
+.prediction-card {
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  padding: 18px;
+  margin: 18px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.prediction-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prediction-card span {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.prediction-card strong {
+  color: #38bdf8;
+  font-size: 1.25rem;
+}

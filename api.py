@@ -1,7 +1,7 @@
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Query
-
+from forecast import generate_forecast
 from db_connect import get_connection
 logging.basicConfig(
     level=logging.INFO,
@@ -253,3 +253,14 @@ def get_ohlc_prices(
 
         if conn is not None:
             conn.close()
+@app.get("/predict/{coin_name}")
+def predict_price(coin_name: str):
+    prediction = generate_forecast(coin_name)
+
+    if prediction is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Not enough historical data to generate forecast.",
+        )
+
+    return prediction
