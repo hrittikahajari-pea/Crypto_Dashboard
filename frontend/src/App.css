@@ -83,8 +83,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 24px;
-  margin-bottom: 8px;
+  gap: 18px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
@@ -175,31 +175,31 @@ tbody tr:hover {
 
 .chart-card {
   overflow-x: auto;
+  padding: 14px 18px;
 }
-
 .ohlc-tooltip {
-  min-width: 260px;
-  min-height: 150px;
+  min-width: 240px;
+  min-height: 120px;
   background: #020617;
   border: 1px solid #334155;
   border-radius: 16px;
-  padding: 16px 18px;
+  padding: 12px 14px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   color: #e2e8f0;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .ohlc-tooltip strong {
   color: #38bdf8;
-  font-size: 15px;
+  font-size: 12px;
 }
 
 .candlestick-chart {
   width: 100%;
-  min-width: 1100px;
-  height: 330px;
+  min-width: 850px;
+  height: 260px;
   display: block;
 }
 
@@ -322,30 +322,112 @@ tbody tr:hover {
 .trend-neutral strong {
   color: #cbd5e1;
 }
+
 .prediction-card {
   background: #020617;
   border: 1px solid #334155;
-  border-radius: 20px;
-  padding: 18px;
+  border-radius: 16px;
+  padding: 18px 20px;
   margin: 18px 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.prediction-card div {
+.prediction-heading {
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.prediction-heading strong {
+  color: #38bdf8;
+  font-size: 1.6rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.prediction-heading span {
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.prediction-main-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prediction-metric,
+.prediction-info-row div {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
-.prediction-card span {
+.prediction-metric span,
+.prediction-info-row span {
   color: #94a3b8;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
-.prediction-card strong {
+.prediction-metric strong {
+  color: #f8fafc;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.prediction-info-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prediction-info-row strong {
   color: #38bdf8;
-  font-size: 1.25rem;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.prediction-note,
+.forecast-disclaimer {
+  text-align: left;
+  color: #e5e7eb;
+  margin: 0;
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+.prediction-note strong,
+.forecast-disclaimer strong {
+  color: #38bdf8;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 900px) {
+  .prediction-main-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .prediction-info-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .prediction-card {
+    padding: 16px;
+  }
+
+  .prediction-main-row,
+  .prediction-info-row {
+    grid-template-columns: 1fr;
+  }
 }

@@ -122,6 +122,8 @@ def get_price_history(
 
     logger.info("Fetching historical price records for %s.", coin_name)
     return fetch_all(query, (coin_name, limit))
+
+
 @app.get("/prices/ohlc/{coin_name}")
 def get_ohlc_prices(
     coin_name: str,
@@ -253,14 +255,62 @@ def get_ohlc_prices(
 
         if conn is not None:
             conn.close()
+
+
 @app.get("/predict/{coin_name}")
-def predict_price(coin_name: str):
-    prediction = generate_forecast(coin_name)
+def predict_price(
+    coin_name: str,
+    model: str = Query(default="auto"),
+):
+    try:
+        prediction = generate_forecast(coin_name, model=model)
 
-    if prediction is None:
+        if prediction is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Not enough historical data to generate forecast.",
+            )
+
+        return prediction
+
+    except ValueError as error:
         raise HTTPException(
-            status_code=404,
-            detail="Not enough historical data to generate forecast.",
-        )
+            status_code=400,
+            detail=str(error),
+        ) from error
 
-    return prediction
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        logger.exception(
+            "Prediction failed for %s using model=%s: %s",
+            coin_name,
+            model,
+            error,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Forecast generation failed. Please check server logs.",
+        ) from error
+
+
+@app.get("/model/status/{coin_name}")
+def get_model_status(coin_name: str):
+    return {
+        "coin_name": coin_name,
+        "available_models": ["auto", "fallback", "advanced"],
+        "default_model": "auto",
+        "forecast_horizon": "Next 30-minute candle",
+        "notes": {
+            "fallback": "Momentum baseline available when enough price history exists.",
+            "advanced": (
+                "Compares available time-series candidates using lag, rolling, return, "
+                "volatility, volume, and market-cap features with chronological validation."
+            ),
+            "auto": (
+                "Automatically chooses the strongest recent backtested forecast and "
+                "falls back safely when needed."
+            ),
+        },
+    }

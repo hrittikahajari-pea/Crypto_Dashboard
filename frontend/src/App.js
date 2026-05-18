@@ -147,13 +147,13 @@ function CandleChart({ data }) {
 
   if (!data || data.length === 0) return null;
 
-  const width = 1200;
-  const height = 330;
+  const width = 1000;
+  const height = 260;
 
   const leftPadding = 95;
   const rightPadding = 35;
-  const topPadding = 30;
-  const bottomPadding = 45;
+  const topPadding = 25;
+  const bottomPadding = 35;
 
   const chartWidth = width - leftPadding - rightPadding;
   const chartHeight = height - topPadding - bottomPadding;
@@ -384,7 +384,7 @@ function CoinDetailPage() {
         setOhlcData(ohlcDataResult);
 
         const predictionResponse = await fetch(
-          `${API_BASE_URL}/predict/${coinName}`
+          `${API_BASE_URL}/predict/${coinName}?model=auto`
         );
 
         if (predictionResponse.ok) {
@@ -406,9 +406,7 @@ function CoinDetailPage() {
   }, [coinName, selectedPeriod]);
 
   function calculateStats(data) {
-    if (!data || data.length === 0) {
-      return null;
-    }
+    if (!data || data.length === 0) return null;
 
     const latestCandle = data[data.length - 1];
 
@@ -438,6 +436,15 @@ function CoinDetailPage() {
       changePercent,
       trend,
     };
+  }
+
+  function hasNumber(value) {
+    return value !== null && value !== undefined && Number.isFinite(Number(value));
+  }
+
+  function formatPercent(value) {
+    if (!hasNumber(value)) return "N/A";
+    return `${Number(value).toFixed(2)}%`;
   }
 
   const stats = calculateStats(ohlcData);
@@ -550,43 +557,71 @@ function CoinDetailPage() {
           <div className="prediction-card">
             <div className="prediction-heading">
               <strong>Next 30-Minute Forecast</strong>
-              <span>
-                Forecast generated from historical price data using a machine
-                learning model.
-              </span>
+              <span>Expected close and direction for the next candle.</span>
             </div>
 
-            <div>
-              <span>Current Price</span>
-              <strong>{formatCurrency(prediction.current_price)}</strong>
+            <div className="prediction-main-row">
+              <div className="prediction-metric">
+                <span>Current Price</span>
+                <strong>{formatCurrency(prediction.current_price)}</strong>
+              </div>
+
+              <div className="prediction-metric">
+                <span>Predicted Close</span>
+                <strong>{formatCurrency(prediction.predicted_price)}</strong>
+              </div>
+
+              <div className="prediction-metric">
+                <span>Expected Change</span>
+                <strong>{formatPercent(prediction.predicted_change_percent)}</strong>
+              </div>
+
+              <div className="prediction-metric">
+                <span>Predicted Trend</span>
+                <strong>{prediction.predicted_trend || "N/A"}</strong>
+              </div>
+
+              <div className="prediction-metric">
+                <span>Signal Strength</span>
+                <strong>
+                  {prediction.signal_label || "N/A"} (
+                  {formatPercent(prediction.signal_strength_score)})
+                </strong>
+              </div>
             </div>
 
-            <div>
-              <span>Predicted Close</span>
-              <strong>{formatCurrency(prediction.predicted_price)}</strong>
+            <div className="prediction-info-row">
+              <div>
+                <span>Active Model</span>
+                <strong>{prediction.model_name || "N/A"}</strong>
+              </div>
+
+              <div>
+                <span>Model Type</span>
+                <strong>{prediction.model_type || "N/A"}</strong>
+              </div>
+
+              <div>
+                <span>Data Points Used</span>
+                <strong>
+                  {hasNumber(prediction.data_points_used)
+                    ? prediction.data_points_used
+                    : "N/A"}
+                </strong>
+              </div>
+
+              <div>
+                <span>Directional Accuracy</span>
+                <strong>{formatPercent(prediction.directional_accuracy)}</strong>
+              </div>
             </div>
 
-            <div>
-              <span>Expected Change</span>
-              <strong>
-                {prediction.predicted_change_percent.toFixed(2)}%
-              </strong>
-            </div>
-
-            <div>
-              <span>Predicted Trend</span>
-              <strong>{prediction.predicted_trend}</strong>
-            </div>
-
-            <div>
-              <span>Confidence Score</span>
-              <strong>{prediction.confidence_score.toFixed(2)}%</strong>
-            </div>
+            <p className="prediction-note">
+              <strong>Model Note:</strong> {prediction.note || "N/A"}
+            </p>
 
             <p className="forecast-disclaimer">
-              This forecast is based on historical price patterns and should be
-              used as a supplementary analytical signal, not as financial
-              advice.
+              <strong>Disclaimer:</strong> Forecast is based on patterns and recommended to use as a supplemanatry analytical signal, not as finanacial advice. Happy Trading! (:
             </p>
           </div>
         )}
