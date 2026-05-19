@@ -41,7 +41,7 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    async function fetchLatestPrices() {
+    async function fetchDashboardData() {
       try {
         setErrorMessage("");
 
@@ -63,9 +63,10 @@ function App() {
       }
     }
 
-    fetchLatestPrices();
+    fetchDashboardData();
 
-    const intervalId = setInterval(fetchLatestPrices, 30000);
+    // Poll the API so new ETL records appear without a manual browser refresh.
+    const intervalId = setInterval(fetchDashboardData, 30000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -366,7 +367,7 @@ function CoinDetailPage() {
   const [prediction, setPrediction] = useState(null);
 
   useEffect(() => {
-    async function fetchCoinData() {
+    async function fetchDashboardData() {
       try {
         setLoading(true);
 
@@ -402,7 +403,12 @@ function CoinDetailPage() {
       }
     }
 
-    fetchCoinData();
+    fetchDashboardData();
+
+    // Poll the API so charts and ML forecasts update after each ETL insert.
+    const intervalId = setInterval(fetchDashboardData, 30000);
+
+    return () => clearInterval(intervalId);
   }, [coinName, selectedPeriod]);
 
   function calculateStats(data) {

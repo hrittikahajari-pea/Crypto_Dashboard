@@ -55,6 +55,9 @@ def parse_timestamp(ts):
 
 
 def insert_data(data):
+    conn = None
+    cur = None
+
     try:
         conn = get_connection()
         cur = conn.cursor()
@@ -84,15 +87,15 @@ def insert_data(data):
 
     except Exception as e:
         logger.error("Insert failed: %s", e)
-        conn.rollback()
+        logger.exception("Database insert failed")
+        if conn:
+            conn.rollback()
 
     finally:
-        if 'cur' in locals():
+        if cur:
             cur.close()
-        if 'conn' in locals():
+        if conn:
             conn.close()
-
-
 def run_etl():
     data = fetch_data()
     if data:
