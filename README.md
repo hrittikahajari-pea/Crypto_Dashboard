@@ -123,16 +123,4 @@ http://localhost:8000/docs
 ### System Architecture
 
 ```
-CoinGecko API
-     ↓
-Python ETL
-     ↓
-PostgreSQL Database
-     ↓
-Feature Engineering + Forecast Models
-     ↓
-FastAPI REST APIs
-     ↓
-React Frontend Dashboard
-     ↓
-User Visualization
+CoinGecko API -> Python ETL -> PostgreSQL Database -> Feature Engineering + Forecast Models -> FastAPI REST APIs -> React Frontend Dashboard -> User Visualization
